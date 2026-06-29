@@ -1,0 +1,799 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MINTI | Investor Dashboard 2026</title>
+    
+    <!-- Fuentes e Iconos -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&family=Lato:wght@300;400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    
+    <!-- Tailwind CSS y Chart.js -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        minti: {
+                            dark: '#0A1128', green: '#00FFCC', green_glow: 'rgba(0, 255, 204, 0.2)',
+                            violet: '#6200EE', gold: '#FFD700', light: '#F8FAF1',
+                            card: 'rgba(255, 255, 255, 0.05)', border: 'rgba(0, 255, 204, 0.3)'
+                        }
+                    },
+                    fontFamily: { sans: ['Lato', 'sans-serif'], heading: ['Poppins', 'sans-serif'] }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        body {
+            background-color: #050814;
+            color: #F8FAF1;
+            /* Previene el scroll en el body, forzando a que ocurra en el main */
+            overflow: hidden; 
+        }
+        
+        .glass-card {
+            background: var(--tw-colors-minti-card);
+            border: 1px solid var(--tw-colors-minti-border);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+        }
+
+        /* * MAGIA DE TABS OFF-SCREEN 
+         * Mueve el contenido fuera de la pantalla en vez de borrarlo.
+         */
+        .tab-content {
+            position: absolute;
+            top: -9999px;
+            left: -9999px;
+            visibility: hidden;
+            opacity: 0;
+            width: 100%;
+            height: 0;
+            overflow: hidden;
+            transition: opacity 0.3s ease;
+        }
+
+        .tab-content.tab-active {
+            position: relative;
+            top: 0;
+            left: 0;
+            visibility: visible;
+            opacity: 1;
+            height: auto;
+            overflow: visible;
+        }
+
+        /* Animación de entrada */
+        @keyframes slideUpFade {
+            from { opacity: 0; transform: translateY(15px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-enter { animation: slideUpFade 0.4s ease-out forwards; }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #0A1128; }
+        ::-webkit-scrollbar-thumb { background: #6200EE; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #00FFCC; }
+
+        /* Efectos Nav */
+        .nav-item { transition: all 0.3s ease; }
+        .nav-item.active { background: linear-gradient(90deg, rgba(98, 0, 238, 0.4) 0%, transparent 100%); border-left: 4px solid #00FFCC; color: #00FFCC; }
+        .nav-item:hover:not(.active) { background: rgba(255, 255, 255, 0.05); color: #00FFCC; }
+
+        /* Fix para Chart.js */
+        .chart-wrapper { position: relative; height: 320px; width: 100%; }
+
+        /* Estilos de Impresión / PDF */
+        @media print {
+            body { background: white; color: black; overflow: auto !important; height: auto !important; }
+            #sidebar, .no-print { display: none !important; }
+            #main-content { overflow: visible !important; height: auto !important; background: white !important; }
+            .fixed { display: none !important; }
+            
+            /* Restablecer Tabs para imprimir solo el documento maestro */
+            .tab-content { display: none !important; }
+            #tab-document { 
+                display: block !important; 
+                position: relative !important; 
+                top: 0 !important; left: 0 !important; 
+                visibility: visible !important; 
+                opacity: 1 !important; 
+                height: auto !important; 
+            }
+            .print-area * { color: black !important; }
+            .glass-card { border: 1px solid #ccc; background: none; break-inside: avoid; }
+            h1, h2, h3, h4 { color: #0A1128 !important; }
+            @page { margin: 1.5cm; }
+        }
+    </style>
+</head>
+<body class="flex h-screen w-full antialiased">
+
+    <!-- SIDEBAR -->
+    <aside id="sidebar" class="w-64 flex-shrink-0 bg-minti-dark border-r border-minti-border flex flex-col justify-between z-20 shadow-2xl relative overflow-y-auto">
+        <div class="absolute top-0 left-0 w-full h-64 bg-gradient-to-b from-minti-violet opacity-10 pointer-events-none"></div>
+
+        <div>
+            <div class="p-6 flex items-center gap-3">
+                <div class="w-10 h-10 rounded-lg overflow-hidden flex items-center justify-center border border-minti-border bg-minti-dark shadow-[0_0_10px_rgba(0,255,204,0.3)]">
+                    <img src="https://drive.google.com/thumbnail?id=1I5nGke2I6tml_wT0geSitgVVRoGsqLMr&sz=w200" alt="MINTI Logo" class="w-full h-full object-cover">
+                </div>
+                <h1 class="font-heading font-bold text-2xl tracking-widest text-white">MINTI</h1>
+            </div>
+            
+            <p class="px-6 text-xs text-gray-400 mb-6 uppercase tracking-wider font-semibold">Dashboard 2026</p>
+
+            <nav class="flex flex-col gap-2 px-3">
+                <button onclick="switchTab('overview')" id="nav-overview" class="nav-item active flex items-center gap-4 px-4 py-3 rounded-r-lg text-left w-full font-medium">
+                    <i class="fa-solid fa-chart-pie w-5"></i> Resumen
+                </button>
+                <button onclick="switchTab('why')" id="nav-why" class="nav-item flex items-center gap-4 px-4 py-3 rounded-r-lg text-left w-full font-medium">
+                    <i class="fa-solid fa-bullseye w-5"></i> ¿Por qué MINTI?
+                </button>
+                <button onclick="switchTab('business')" id="nav-business" class="nav-item flex items-center gap-4 px-4 py-3 rounded-r-lg text-left w-full font-medium">
+                    <i class="fa-solid fa-briefcase w-5"></i> Plan de Negocios
+                </button>
+                <button onclick="switchTab('competitors')" id="nav-competitors" class="nav-item flex items-center gap-4 px-4 py-3 rounded-r-lg text-left w-full font-medium">
+                    <i class="fa-solid fa-chess-knight w-5"></i> Competencia
+                </button>
+                <button onclick="switchTab('brandbook')" id="nav-brandbook" class="nav-item flex items-center gap-4 px-4 py-3 rounded-r-lg text-left w-full font-medium">
+                    <i class="fa-solid fa-swatchbook w-5"></i> Brandbook
+                </button>
+                <button onclick="switchTab('demo')" id="nav-demo" class="nav-item flex items-center gap-4 px-4 py-3 rounded-r-lg text-left w-full font-medium">
+                    <i class="fa-solid fa-gamepad w-5"></i> Demo Jugable
+                </button>
+                <button onclick="switchTab('document')" id="nav-document" class="nav-item flex items-center gap-4 px-4 py-3 rounded-r-lg text-left w-full font-medium">
+                    <i class="fa-solid fa-folder-open w-5"></i> Data Room
+                </button>
+            </nav>
+        </div>
+
+        <div class="p-6 mt-auto">
+            <div class="glass-card p-4 rounded-xl text-center border-minti-green">
+                <p class="text-xs text-gray-400 mb-1">Ronda Actual</p>
+                <p class="font-heading font-bold text-minti-green text-lg">Pre-Seed $10M</p>
+            </div>
+        </div>
+    </aside>
+
+    <!-- MAIN CONTENT - scroll independiente -->
+    <main id="main-content" class="flex-1 h-full overflow-y-auto relative">
+        
+        <!-- Fondos abstractos -->
+        <div class="fixed top-0 right-0 w-96 h-96 bg-minti-violet rounded-full mix-blend-screen filter blur-[120px] opacity-20 pointer-events-none z-0"></div>
+        <div class="fixed bottom-0 left-64 w-72 h-72 bg-minti-green rounded-full mix-blend-screen filter blur-[100px] opacity-10 pointer-events-none z-0"></div>
+
+        <!-- Contenedor interno -->
+        <div class="p-8 relative z-10 min-h-full max-w-7xl mx-auto flex flex-col">
+            
+            <!-- 1. OVERVIEW TAB -->
+            <section id="tab-overview" class="tab-content tab-active animate-enter">
+                <header class="mb-8 flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
+                    <div>
+                        <h2 class="font-heading text-4xl font-bold text-white mb-2">Executive <span class="text-minti-green">Overview</span></h2>
+                        <p class="text-gray-400">El futuro financiero se aprende jugando.</p>
+                    </div>
+                    <span class="inline-block px-3 py-1 rounded-full bg-minti-green_glow text-minti-green text-sm font-semibold border border-minti-green/30">CONFIDENCIAL</span>
+                </header>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                    <div class="glass-card p-6 rounded-2xl border-t-4 border-t-minti-violet transition transform hover:-translate-y-1">
+                        <p class="text-sm text-gray-400 mb-2">Mercado Objetivo</p>
+                        <h3 class="font-heading text-3xl font-bold text-white">70%</h3>
+                        <p class="text-xs text-minti-green mt-2">Niños sin ed. financiera en MX</p>
+                    </div>
+                    <div class="glass-card p-6 rounded-2xl border-t-4 border-t-minti-green transition transform hover:-translate-y-1">
+                        <p class="text-sm text-gray-400 mb-2">Economía Informal</p>
+                        <h3 class="font-heading text-3xl font-bold text-white">$10B</h3>
+                        <p class="text-xs text-minti-green mt-2">USD Anuales (Domingos)</p>
+                    </div>
+                    <div class="glass-card p-6 rounded-2xl border-t-4 border-t-minti-gold transition transform hover:-translate-y-1">
+                        <p class="text-sm text-gray-400 mb-2">LTV:CAC (B2B2C)</p>
+                        <h3 class="font-heading text-3xl font-bold text-white">30.0x</h3>
+                        <p class="text-xs text-minti-green mt-2">Vía alianzas bancarias</p>
+                    </div>
+                    <div class="glass-card p-6 rounded-2xl border-t-4 border-t-blue-500 transition transform hover:-translate-y-1">
+                        <p class="text-sm text-gray-400 mb-2">Punto de Equilibrio</p>
+                        <h3 class="font-heading text-3xl font-bold text-white">Mes 22</h3>
+                        <p class="text-xs text-minti-green mt-2">Margen bruto meta: 85%</p>
+                    </div>
+                </div>
+
+                <h3 class="font-heading text-2xl font-bold mb-4">El Ecosistema MINTI</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-8 pb-10">
+                    <!-- Tarjeta MINTI Card -->
+                    <div class="glass-card p-8 rounded-3xl flex flex-col sm:flex-row gap-6 items-center shadow-[0_0_15px_rgba(98,0,238,0.3)]">
+                        <div class="w-24 h-24 sm:w-32 sm:h-32 rounded-xl bg-gradient-to-br from-minti-dark to-minti-violet border border-minti-border flex-shrink-0 flex items-center justify-center text-4xl">
+                            <i class="fa-solid fa-credit-card text-minti-green"></i>
+                        </div>
+                        <div class="text-center sm:text-left">
+                            <h4 class="font-heading text-xl font-bold mb-2 text-minti-green">Minti Card</h4>
+                            <p class="text-sm text-gray-300">Tarjeta co-brandeada (Visa/MC). 'Split Wallet' para separar dinero real (MXN) de divisa virtual (MNT). Panel parental de control.</p>
+                        </div>
+                    </div>
+                    
+                    <!-- Tarjeta Prosper Valley -->
+                    <div class="glass-card rounded-3xl flex flex-col overflow-hidden shadow-[0_0_15px_rgba(0,255,204,0.3)] relative group border-t-2 border-t-minti-green">
+                        <div class="h-32 w-full relative overflow-hidden bg-minti-dark">
+                            <img src="https://drive.google.com/thumbnail?id=1B6N9qF1hBEjsVdeJgXv23FfviRBQFFUn&sz=w1200" alt="Prosper Valley Demo" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110">
+                            <div class="absolute inset-0 bg-gradient-to-t from-minti-dark via-minti-dark/60 to-transparent"></div>
+                        </div>
+                        <div class="px-8 pb-8 pt-2 relative z-10 flex-grow text-center sm:text-left">
+                            <h4 class="font-heading text-xl font-bold mb-2 text-minti-green">Prosper Valley</h4>
+                            <p class="text-sm text-gray-300">Videojuego MMO de simulación económica 3D. Diseño pedagógico evolutivo guiado por IAs para edades de 6 a 17 años.</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 2. ¿POR QUÉ MINTI? TAB -->
+            <section id="tab-why" class="tab-content animate-enter">
+                <header class="mb-8">
+                    <h2 class="font-heading text-4xl font-bold text-white mb-2">El Problema y <span class="text-minti-violet">Nuestra Misión</span></h2>
+                    <p class="text-gray-400">¿Por qué estamos construyendo esto ahora?</p>
+                </header>
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-10">
+                    <div class="glass-card p-8 rounded-3xl border-l-4 border-minti-violet">
+                        <h3 class="font-heading text-2xl font-bold text-minti-green mb-4">El Problema Profundo</h3>
+                        <p class="text-gray-300 mb-4 leading-relaxed">En América Latina, la educación financiera se enseña de forma teórica y aburrida. Los niños reciben "domingos" pero no herramientas prácticas para gestionarlo. El resultado es una generación propensa al sobreendeudamiento, compras impulsivas y nula cultura de inversión a largo plazo.</p>
+                        <ul class="list-none space-y-3 mt-6">
+                            <li><i class="fa-solid fa-triangle-exclamation text-minti-gold mr-3"></i> <strong>70% de menores</strong> sin educación financiera formal.</li>
+                            <li><i class="fa-solid fa-money-bill-trend-up text-minti-gold mr-3"></i> <strong>$10B USD anuales</strong> fluyen fuera del sistema formal.</li>
+                        </ul>
+                    </div>
+                    <div class="glass-card p-8 rounded-3xl border-l-4 border-minti-green">
+                        <h3 class="font-heading text-2xl font-bold text-minti-violet mb-4">La Solución: Gamificación Aplicada</h3>
+                        <p class="text-gray-300 mb-4 leading-relaxed">No aprendes a andar en bicicleta leyendo un PDF. Tampoco aprendes a usar el dinero leyendo un libro. MINTI utiliza la <strong>economía conductual</strong> y los ciclos de recompensa de los videojuegos para crear hábitos reales, viscerales y duraderos.</p>
+                        <ul class="list-none space-y-3 mt-6">
+                            <li><i class="fa-solid fa-brain text-minti-green mr-3"></i> <strong>Aprender haciendo:</strong> Simulación interactiva de inflación, ahorro e interés compuesto.</li>
+                            <li><i class="fa-solid fa-shield-halved text-minti-green mr-3"></i> <strong>Entorno Seguro:</strong> Fracasar en el juego hoy para no quebrar en la vida real mañana.</li>
+                        </ul>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 3. BUSINESS PLAN TAB -->
+            <section id="tab-business" class="tab-content animate-enter">
+                <header class="mb-8">
+                    <h2 class="font-heading text-4xl font-bold text-white mb-2">Estrategia & <span class="text-minti-violet">Finanzas</span></h2>
+                    <p class="text-gray-400">Proyecciones de ingresos y desglose de inversión.</p>
+                </header>
+
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-10">
+                    <div class="lg:col-span-2 glass-card p-6 rounded-2xl flex flex-col">
+                        <h3 class="font-heading text-xl font-bold mb-4">Proyección de Ingresos (3 Años)</h3>
+                        <div class="chart-wrapper flex-grow">
+                            <canvas id="revenueChart"></canvas>
+                        </div>
+                    </div>
+                    <div class="glass-card p-6 rounded-2xl flex flex-col">
+                        <h3 class="font-heading text-xl font-bold mb-4">Uso de Fondos ($10M)</h3>
+                        <div class="chart-wrapper flex-grow flex items-center justify-center">
+                            <canvas id="investmentChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="glass-card p-6 rounded-2xl flex flex-col mb-10">
+                    <h3 class="font-heading text-xl font-bold mb-4">Crecimiento de Usuarios Activos (Curva de Adopción)</h3>
+                    <div class="chart-wrapper flex-grow">
+                        <canvas id="growthChart"></canvas>
+                    </div>
+                </div>
+
+                <h3 class="font-heading text-2xl font-bold mb-6">Canales de Monetización</h3>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 pb-6">
+                    <div class="glass-card p-6 rounded-xl border-t-2 border-t-minti-green hover:bg-minti-card transition-colors">
+                        <div class="w-12 h-12 bg-gray-800 rounded-full flex items-center justify-center mb-4 text-xl text-minti-green"><i class="fa-solid fa-users"></i></div>
+                        <h4 class="font-bold text-lg mb-2">Canal B2C</h4>
+                        <p class="text-sm text-gray-400">Suscripciones familiares ($149-349 MXN) + Interchange fees de tarjetas.</p>
+                    </div>
+                    <div class="glass-card p-6 rounded-xl border-t-2 border-t-minti-violet hover:bg-minti-card transition-colors">
+                        <div class="w-12 h-12 bg-gray-800 rounded-full flex items-center justify-center mb-4 text-xl text-minti-violet"><i class="fa-solid fa-school"></i></div>
+                        <h4 class="font-bold text-lg mb-2">Canal B2B</h4>
+                        <p class="text-sm text-gray-400">Licencias SaaS "Minti Academy" para colegios privados Triple-A.</p>
+                    </div>
+                    <div class="glass-card p-6 rounded-xl border-t-2 border-t-minti-gold hover:bg-minti-card transition-colors">
+                        <div class="w-12 h-12 bg-gray-800 rounded-full flex items-center justify-center mb-4 text-xl text-minti-gold"><i class="fa-solid fa-building-columns"></i></div>
+                        <h4 class="font-bold text-lg mb-2">Canal B2B2C</h4>
+                        <p class="text-sm text-gray-400">Alianzas bancarias: Revenue share + fees por tarjeta emitida.</p>
+                    </div>
+                </div>
+
+                <h3 class="font-heading text-2xl font-bold mb-6 mt-4 border-t border-gray-800 pt-8">Estructura de Suscripciones (B2C)</h3>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 pb-10">
+                    <div class="glass-card p-6 rounded-xl border border-gray-700 flex flex-col">
+                        <h4 class="font-bold text-xl text-gray-300 mb-2">Básico</h4>
+                        <div class="text-3xl font-heading font-bold text-white mb-4">$0 <span class="text-sm font-normal text-gray-400">/mes</span></div>
+                        <ul class="text-sm text-gray-400 space-y-3 flex-grow mb-6">
+                            <li><i class="fa-solid fa-check text-minti-green mr-2"></i>Acceso a Prosper Valley (Limitado)</li>
+                            <li><i class="fa-solid fa-check text-minti-green mr-2"></i>Cuenta virtual MNT</li>
+                            <li><i class="fa-solid fa-xmark text-red-500 opacity-50 mr-2"></i>Sin tarjeta de débito física</li>
+                        </ul>
+                    </div>
+                    <div class="glass-card p-6 rounded-xl border-2 border-minti-green relative transform md:scale-105 z-10 flex flex-col shadow-[0_0_25px_rgba(0,255,204,0.15)] bg-minti-dark/90">
+                        <div class="absolute -top-3 left-1/2 transform -translate-x-1/2 bg-minti-green text-minti-dark text-xs font-bold px-4 py-1 rounded-full">MÁS POPULAR</div>
+                        <h4 class="font-bold text-xl text-minti-green mb-2">Pro Individual</h4>
+                        <div class="text-3xl font-heading font-bold text-white mb-4">$149 <span class="text-sm font-normal text-gray-400">MXN/mes</span></div>
+                        <ul class="text-sm text-gray-300 space-y-3 flex-grow mb-6">
+                            <li><i class="fa-solid fa-check text-minti-green mr-2"></i>Prosper Valley Ilimitado</li>
+                            <li><i class="fa-solid fa-check text-minti-green mr-2"></i>1 Tarjeta de Débito Física (BaaS)</li>
+                            <li><i class="fa-solid fa-check text-minti-green mr-2"></i>Misiones de IA con Finny</li>
+                            <li><i class="fa-solid fa-check text-minti-green mr-2"></i>Panel Parental Completo</li>
+                        </ul>
+                    </div>
+                    <div class="glass-card p-6 rounded-xl border border-minti-violet flex flex-col">
+                        <h4 class="font-bold text-xl text-minti-violet mb-2">Familia Épica</h4>
+                        <div class="text-3xl font-heading font-bold text-white mb-4">$349 <span class="text-sm font-normal text-gray-400">MXN/mes</span></div>
+                        <ul class="text-sm text-gray-400 space-y-3 flex-grow mb-6">
+                            <li><i class="fa-solid fa-check text-minti-green mr-2"></i>Todo lo del plan Pro</li>
+                            <li><i class="fa-solid fa-check text-minti-green mr-2"></i>Hasta 4 Tarjetas Físicas</li>
+                            <li><i class="fa-solid fa-check text-minti-green mr-2"></i>Misiones Familiares Colaborativas</li>
+                            <li><i class="fa-solid fa-check text-minti-green mr-2"></i>Reporte Behavioral ID avanzado</li>
+                        </ul>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 4. COMPETENCIA TAB -->
+            <section id="tab-competitors" class="tab-content animate-enter">
+                <header class="mb-8">
+                    <h2 class="font-heading text-4xl font-bold text-white mb-2">Análisis de <span class="text-minti-gold">Competencia</span></h2>
+                    <p class="text-gray-400">Estudio comparativo focalizado en el mercado mexicano y brechas de oportunidad.</p>
+                </header>
+                
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-10">
+                    <div class="glass-card p-6 rounded-2xl flex flex-col">
+                        <h3 class="font-heading text-xl font-bold mb-4">Radar de Posicionamiento (México)</h3>
+                        <div class="chart-wrapper flex-grow flex items-center justify-center">
+                            <canvas id="radarChart"></canvas>
+                        </div>
+                    </div>
+                    <div class="glass-card p-8 rounded-2xl border-l-4 border-minti-gold flex flex-col justify-center">
+                        <h3 class="font-heading text-2xl font-bold text-minti-gold mb-4">Por qué MINTI es superior</h3>
+                        <p class="text-gray-300 mb-4 leading-relaxed">Mientras <strong>Mozper</strong> tiene la infraestructura pero carece de engagement lúdico, y opciones como <strong>Greenlight</strong> son prohibitivas y no están reguladas en México, MINTI domina al fusionar ambos mundos.</p>
+                        <p class="text-gray-300 leading-relaxed">Nuestro videojuego MMO engancha al niño emocionalmente, asegurando retención, mientras la infraestructura bancaria (BaaS) da tranquilidad. Esta intersección y el canal B2B escolar crean un Foso Defensivo (Moat) insuperable.</p>
+                    </div>
+                </div>
+
+                <h3 class="font-heading text-2xl font-bold mb-4 border-t border-gray-800 pt-8">Estudio Comparativo Directo</h3>
+                <p class="text-sm text-gray-400 mb-6">Selecciona un competidor para desplegar el análisis detallado frente a MINTI.</p>
+                <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6" id="competitors-grid">
+                    <!-- Tarjetas de competidores inyectadas vía JS -->
+                </div>
+                <div id="competitor-details" class="glass-card p-6 rounded-2xl mb-12 hidden border-t-4 border-minti-green transition-all duration-300">
+                    <!-- Detalle inyectado vía JS -->
+                </div>
+
+                <h3 class="font-heading text-2xl font-bold mb-6 border-t border-gray-800 pt-8">Brechas de Mercado (Oportunidad MX)</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-10">
+                    <div class="glass-card p-6 rounded-xl border border-gray-700 hover:border-minti-green transition-colors">
+                        <div class="flex justify-between items-start mb-4">
+                            <div class="flex items-center gap-3">
+                                <span class="text-3xl">🎮</span>
+                                <h4 class="font-bold text-white text-lg leading-tight">Gamificación + Banca Real</h4>
+                            </div>
+                            <span class="text-[10px] font-bold px-3 py-1 bg-red-500/20 text-red-400 rounded-full">ALTA URGENCIA</span>
+                        </div>
+                        <p class="text-sm text-gray-400 mb-4"><strong class="text-gray-200">Brecha:</strong> Ningún competidor activo en MX une videojuego MMO con tarjeta. Mozper tiene tarjeta pero cero gameplay. CONDUSEF tiene educación pero cero producto.</p>
+                        <div class="p-3 bg-minti-green/10 border border-minti-green/30 rounded-lg text-sm text-minti-green">
+                            <strong>MINTI:</strong> Core loop Unity + Split Wallet. La única propuesta que gamifica dinero real en el ecosistema mexicano.
+                        </div>
+                    </div>
+                    <div class="glass-card p-6 rounded-xl border border-gray-700 hover:border-minti-green transition-colors">
+                        <div class="flex justify-between items-start mb-4">
+                            <div class="flex items-center gap-3">
+                                <span class="text-3xl">🏫</span>
+                                <h4 class="font-bold text-white text-lg leading-tight">Canal B2B con Colegios</h4>
+                            </div>
+                            <span class="text-[10px] font-bold px-3 py-1 bg-red-500/20 text-red-400 rounded-full">ALTA URGENCIA</span>
+                        </div>
+                        <p class="text-sm text-gray-400 mb-4"><strong class="text-gray-200">Brecha:</strong> Ningún player en México tiene una estrategia B2B SaaS dirigida a instituciones educativas. Los colegios Triple A carecen de currículas digitales certificadas.</p>
+                        <div class="p-3 bg-minti-green/10 border border-minti-green/30 rounded-lg text-sm text-minti-green">
+                            <strong>MINTI:</strong> Minti Academy genera ingresos recurrentes y reduce el CAC al crear un funnel educativo institucional masivo.
+                        </div>
+                    </div>
+                    <div class="glass-card p-6 rounded-xl border border-gray-700 hover:border-minti-green transition-colors">
+                        <div class="flex justify-between items-start mb-4">
+                            <div class="flex items-center gap-3">
+                                <span class="text-3xl">📊</span>
+                                <h4 class="font-bold text-white text-lg leading-tight">Historial Conductual</h4>
+                            </div>
+                            <span class="text-[10px] font-bold px-3 py-1 bg-red-500/20 text-red-400 rounded-full">ALTA URGENCIA</span>
+                        </div>
+                        <p class="text-sm text-gray-400 mb-4"><strong class="text-gray-200">Brecha:</strong> Los bancos mexicanos Tier-1 no tienen datos de comportamiento financiero de menores antes de su mayoría de edad.</p>
+                        <div class="p-3 bg-minti-green/10 border border-minti-green/30 rounded-lg text-sm text-minti-green">
+                            <strong>MINTI:</strong> Genera hasta 10 años de historial conductual. Actúa como canal de captación a CAC $0 para bancos aliados a los 18 años.
+                        </div>
+                    </div>
+                    <div class="glass-card p-6 rounded-xl border border-gray-700 hover:border-minti-green transition-colors">
+                        <div class="flex justify-between items-start mb-4">
+                            <div class="flex items-center gap-3">
+                                <span class="text-3xl">⚖️</span>
+                                <h4 class="font-bold text-white text-lg leading-tight">Marco Regulatorio LFPDPPP</h4>
+                            </div>
+                            <span class="text-[10px] font-bold px-3 py-1 bg-yellow-500/20 text-yellow-400 rounded-full">MEDIA URGENCIA</span>
+                        </div>
+                        <p class="text-sm text-gray-400 mb-4"><strong class="text-gray-200">Brecha:</strong> Competidores referencian COPPA (EE.UU.) en México, ignorando la LFPDPPP del INAI, el marco legal real aplicable para datos de menores.</p>
+                        <div class="p-3 bg-minti-green/10 border border-minti-green/30 rounded-lg text-sm text-minti-green">
+                            <strong>MINTI:</strong> Liderazgo regulatorio local: LFPDPPP + Circular CNBV + aviso INAI = ventaja competitiva de gobernanza y confianza.
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 5. BRANDBOOK TAB -->
+            <section id="tab-brandbook" class="tab-content animate-enter">
+                <header class="mb-8">
+                    <h2 class="font-heading text-4xl font-bold text-white mb-2">Identidad de <span class="text-minti-green">Marca</span></h2>
+                    <p class="text-gray-400">Lineamientos visuales y verbales que construyen confianza y modernidad.</p>
+                </header>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-10">
+                    <div class="glass-card p-6 rounded-2xl">
+                        <h3 class="font-heading text-xl font-bold mb-4 border-b border-gray-700 pb-2">Paleta de Colores</h3>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div class="flex flex-col"><div class="h-20 w-full rounded-t-lg bg-[#0A1128] border border-gray-700"></div><div class="bg-minti-dark p-3 rounded-b-lg border-x border-b border-gray-700"><p class="font-bold text-sm">Cosmic Blue</p><p class="text-xs text-gray-400">#0A1128</p></div></div>
+                            <div class="flex flex-col"><div class="h-20 w-full rounded-t-lg bg-[#00FFCC]"></div><div class="bg-minti-dark p-3 rounded-b-lg border-x border-b border-gray-700"><p class="font-bold text-sm text-minti-green">Neo Green</p><p class="text-xs text-gray-400">#00FFCC</p></div></div>
+                            <div class="flex flex-col"><div class="h-20 w-full rounded-t-lg bg-[#6200EE]"></div><div class="bg-minti-dark p-3 rounded-b-lg border-x border-b border-gray-700"><p class="font-bold text-sm text-minti-violet">Minti Violet</p><p class="text-xs text-gray-400">#6200EE</p></div></div>
+                            <div class="flex flex-col"><div class="h-20 w-full rounded-t-lg bg-[#FFD700]"></div><div class="bg-minti-dark p-3 rounded-b-lg border-x border-b border-gray-700"><p class="font-bold text-sm text-minti-gold">Gold Coin</p><p class="text-xs text-gray-400">#FFD700</p></div></div>
+                        </div>
+                    </div>
+                    <div class="flex flex-col gap-6">
+                        <div class="glass-card p-6 rounded-2xl flex-1">
+                            <h3 class="font-heading text-xl font-bold mb-4 border-b border-gray-700 pb-2">Tipografía Principal</h3>
+                            <div class="mb-4"><p class="text-sm text-gray-400 mb-1">Titulares: Poppins Bold</p><h1 class="font-heading text-3xl font-bold text-white tracking-wide">El futuro es jugable.</h1></div>
+                            <div><p class="text-sm text-gray-400 mb-1">Cuerpo: Lato Regular</p><p class="font-sans text-lg text-gray-300">Hacemos que la gestión del dinero sea accesible, clara y emocionante.</p></div>
+                        </div>
+                        <div class="glass-card p-6 rounded-2xl flex-1 border-l-4 border-l-minti-violet">
+                            <h3 class="font-heading text-xl font-bold mb-3">Tono de Voz</h3>
+                            <p class="text-sm text-gray-300 mb-3">MINTI no le habla a los niños como bebés, ni a los padres como banqueros. Somos el "hermano mayor cool".</p>
+                            <div class="flex flex-wrap gap-2">
+                                <span class="px-3 py-1 bg-white/10 rounded-full text-sm font-semibold text-minti-green">Épico</span>
+                                <span class="px-3 py-1 bg-white/10 rounded-full text-sm font-semibold text-minti-green">Empático</span>
+                                <span class="px-3 py-1 bg-white/10 rounded-full text-sm font-semibold text-minti-green">Seguro</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <h3 class="font-heading text-2xl font-bold mb-6 border-t border-gray-800 pt-8">Universo y Personajes Oficiales</h3>
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-6 pb-10">
+                    <div class="glass-card rounded-xl overflow-hidden flex flex-col items-center p-5 border-t-4 border-minti-green hover:bg-minti-card transition-colors">
+                        <div class="w-full aspect-square mb-4 rounded-xl overflow-hidden bg-[#0A1128] border border-gray-700 p-2 flex items-center justify-center shadow-inner">
+                            <img src="https://drive.google.com/thumbnail?id=1Lf1ecaOM592X6luACES2rL8lxcUwlQSU&sz=w800" alt="Finny AI" class="max-w-full max-h-full object-contain drop-shadow-2xl hover:scale-105 transition-transform">
+                        </div>
+                        <h4 class="font-bold text-minti-green text-lg tracking-wide">FINNY</h4>
+                        <p class="text-xs text-gray-400 text-center mt-1 uppercase font-semibold">IA Mentor & Guía</p>
+                    </div>
+                    <div class="glass-card rounded-xl overflow-hidden flex flex-col items-center p-5 border-t-4 border-minti-violet hover:bg-minti-card transition-colors">
+                        <div class="w-full aspect-square mb-4 rounded-xl overflow-hidden bg-[#0A1128] border border-gray-700 p-2 flex items-center justify-center shadow-inner">
+                            <img src="https://drive.google.com/thumbnail?id=1cX7Ja6AptOua783qt_KQvAc8mxLxmp71&sz=w800" alt="Floro" class="max-w-full max-h-full object-contain drop-shadow-2xl hover:scale-105 transition-transform">
+                        </div>
+                        <h4 class="font-bold text-minti-violet text-lg tracking-wide">FLORO</h4>
+                        <p class="text-xs text-gray-400 text-center mt-1 uppercase font-semibold">Antagonista del Gasto</p>
+                    </div>
+                    <div class="glass-card rounded-xl overflow-hidden flex flex-col items-center p-5 border-t-4 border-minti-gold hover:bg-minti-card transition-colors">
+                        <div class="w-full aspect-square mb-4 rounded-xl overflow-hidden bg-[#0A1128] border border-gray-700 p-2 flex items-center justify-center shadow-inner">
+                            <img src="https://drive.google.com/thumbnail?id=1-U-1827RvN_WfRJBTv8O5ZdO0arwHigw&sz=w800" alt="Avatar Niño" class="max-w-full max-h-full object-contain drop-shadow-2xl hover:scale-105 transition-transform">
+                        </div>
+                        <h4 class="font-bold text-minti-gold text-lg tracking-wide">JUGADOR</h4>
+                        <p class="text-xs text-gray-400 text-center mt-1 uppercase font-semibold">Avatar Base (Niño)</p>
+                    </div>
+                    <div class="glass-card rounded-xl overflow-hidden flex flex-col items-center p-5 border-t-4 border-minti-gold hover:bg-minti-card transition-colors">
+                        <div class="w-full aspect-square mb-4 rounded-xl overflow-hidden bg-[#0A1128] border border-gray-700 p-2 flex items-center justify-center shadow-inner">
+                            <img src="https://drive.google.com/thumbnail?id=13OOzFT9FQ0goF1sZlOgXGQSrmhMaRZzO&sz=w800" alt="Avatar Niña" class="max-w-full max-h-full object-contain drop-shadow-2xl hover:scale-105 transition-transform">
+                        </div>
+                        <h4 class="font-bold text-minti-gold text-lg tracking-wide">JUGADORA</h4>
+                        <p class="text-xs text-gray-400 text-center mt-1 uppercase font-semibold">Avatar Base (Niña)</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 6. DEMO JUGABLE TAB (Lanzador) -->
+            <section id="tab-demo" class="tab-content animate-enter">
+                <header class="mb-4 flex flex-col sm:flex-row justify-between sm:items-end no-print gap-4">
+                    <div>
+                        <h2 class="font-heading text-3xl font-bold text-white">Live Demo: <span class="text-minti-green">Prosper Valley</span></h2>
+                        <p class="text-gray-400 text-sm mt-1">Lanzador oficial del motor gráfico (Rosebud AI)</p>
+                    </div>
+                </header>
+                <div class="iframe-container flex items-center justify-center relative bg-minti-dark mt-2 mb-8 overflow-hidden group border border-minti-violet/50">
+                    <img src="https://drive.google.com/thumbnail?id=1B6N9qF1hBEjsVdeJgXv23FfviRBQFFUn&sz=w1200" alt="Prosper Valley Background" class="absolute inset-0 w-full h-full object-cover opacity-40 group-hover:opacity-30 transition-opacity duration-500">
+                    <div class="relative z-10 flex flex-col items-center text-center p-8 bg-[#0A1128]/70 backdrop-blur-md border border-minti-green/30 rounded-3xl shadow-[0_0_40px_rgba(0,255,204,0.15)] max-w-lg">
+                        <div class="w-24 h-24 bg-gradient-to-br from-minti-green to-teal-500 rounded-full flex items-center justify-center mb-6 shadow-[0_0_30px_rgba(0,255,204,0.5)] animate-pulse">
+                            <i class="fa-solid fa-play text-minti-dark text-4xl ml-2"></i>
+                        </div>
+                        <h3 class="font-heading text-3xl font-bold text-white mb-3">Prosper Valley MMO</h3>
+                        <p class="text-gray-300 mb-8 leading-relaxed">Por políticas de seguridad y rendimiento de Rosebud AI, la simulación 3D requiere ejecutarse en una ventana dedicada.</p>
+                        <a href="https://rosebud.ai/play/minti" target="_blank" class="px-8 py-4 bg-minti-green hover:bg-white text-minti-dark rounded-xl text-lg font-bold transition-colors shadow-[0_0_20px_rgba(0,255,204,0.3)] flex items-center gap-3">
+                            <i class="fa-solid fa-rocket"></i> Iniciar Simulación
+                        </a>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 7. DOCUMENTO (PDF/DATA ROOM) TAB -->
+            <section id="tab-document" class="tab-content print-area animate-enter">
+                <header class="mb-8 flex justify-between items-center no-print border-b border-gray-800 pb-4">
+                    <div>
+                        <h2 class="font-heading text-3xl font-bold text-white">Data Room / Doc Maestro</h2>
+                        <p class="text-gray-400">Archivos anexos y vista de reporte final para exportación.</p>
+                    </div>
+                    <button onclick="window.print()" class="px-6 py-3 bg-minti-green hover:bg-teal-400 text-minti-dark rounded-lg font-bold transition-colors shadow-[0_0_15px_rgba(0,255,204,0.4)]">
+                        <i class="fa-solid fa-file-pdf mr-2"></i> Generar PDF
+                    </button>
+                </header>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8 no-print">
+                    <button onclick="previewDoc('https://drive.google.com/file/d/1hL8QDXJahBCP_3_wf69ZngDgs9XKTTBZ/preview', 'Plan de Negocios', 'https://drive.google.com/file/d/1hL8QDXJahBCP_3_wf69ZngDgs9XKTTBZ/view?usp=sharing')" class="text-left glass-card p-5 rounded-xl border border-gray-700 hover:border-minti-green transition-colors flex items-center gap-4 group bg-gradient-to-br hover:from-minti-dark hover:to-minti-green/10 focus:outline-none">
+                        <div class="text-4xl text-red-500 group-hover:scale-110 transition-transform"><i class="fa-solid fa-file-pdf"></i></div>
+                        <div>
+                            <h4 class="font-bold text-white leading-tight">Plan de Negocios</h4>
+                            <p class="text-xs text-minti-green mt-1 font-semibold">Previsualizar <i class="fa-solid fa-eye ml-1"></i></p>
+                        </div>
+                    </button>
+                    <button onclick="previewDoc('https://drive.google.com/file/d/1sUATOh9wYKUcU8xitV3nLVwUB7EPIiGq/preview', 'Presentación (Deck)', 'https://drive.google.com/file/d/1sUATOh9wYKUcU8xitV3nLVwUB7EPIiGq/view?usp=sharing')" class="text-left glass-card p-5 rounded-xl border border-gray-700 hover:border-minti-green transition-colors flex items-center gap-4 group bg-gradient-to-br hover:from-minti-dark hover:to-minti-green/10 focus:outline-none">
+                        <div class="text-4xl text-orange-500 group-hover:scale-110 transition-transform"><i class="fa-solid fa-person-chalkboard"></i></div>
+                        <div>
+                            <h4 class="font-bold text-white leading-tight">Presentación</h4>
+                            <p class="text-xs text-minti-green mt-1 font-semibold">Previsualizar <i class="fa-solid fa-eye ml-1"></i></p>
+                        </div>
+                    </button>
+                    <button onclick="previewDoc('https://drive.google.com/file/d/1hGrsSvGzgNZSpZNgO4KdHqsxl7rhcEIB/preview', 'Brandbook Oficial', 'https://drive.google.com/file/d/1hGrsSvGzgNZSpZNgO4KdHqsxl7rhcEIB/view?usp=sharing')" class="text-left glass-card p-5 rounded-xl border border-gray-700 hover:border-minti-green transition-colors flex items-center gap-4 group bg-gradient-to-br hover:from-minti-dark hover:to-minti-green/10 focus:outline-none">
+                        <div class="text-4xl text-minti-violet group-hover:scale-110 transition-transform"><i class="fa-solid fa-swatchbook"></i></div>
+                        <div>
+                            <h4 class="font-bold text-white leading-tight">Brandbook</h4>
+                            <p class="text-xs text-minti-green mt-1 font-semibold">Previsualizar <i class="fa-solid fa-eye ml-1"></i></p>
+                        </div>
+                    </button>
+                    <button onclick="previewDoc('https://docs.google.com/document/d/1kWsrPe-7WRciejDuhb7I5RWetf7gYCat/preview', 'Documento de Rediseño', 'https://docs.google.com/document/d/1kWsrPe-7WRciejDuhb7I5RWetf7gYCat/edit?usp=drive_link')" class="text-left glass-card p-5 rounded-xl border border-gray-700 hover:border-minti-green transition-colors flex items-center gap-4 group bg-gradient-to-br hover:from-minti-dark hover:to-minti-green/10 focus:outline-none">
+                        <div class="text-4xl text-blue-400 group-hover:scale-110 transition-transform"><i class="fa-solid fa-file-word"></i></div>
+                        <div>
+                            <h4 class="font-bold text-white leading-tight">Doc. Rediseño</h4>
+                            <p class="text-xs text-minti-green mt-1 font-semibold">Previsualizar <i class="fa-solid fa-eye ml-1"></i></p>
+                        </div>
+                    </button>
+                </div>
+
+                <!-- Visor In-App -->
+                <div id="docViewerContainer" class="w-full h-[700px] rounded-xl border-2 border-minti-violet overflow-hidden flex flex-col mb-10 hidden shadow-[0_0_30px_rgba(98,0,238,0.3)] no-print transition-all duration-500">
+                    <div class="bg-gray-900 border-b border-minti-violet p-4 flex justify-between items-center">
+                        <div class="flex items-center gap-3">
+                            <i class="fa-solid fa-file-lines text-minti-green text-xl"></i>
+                            <span id="docViewerTitle" class="font-bold text-white tracking-wide text-lg">Visor de Documento</span>
+                        </div>
+                        <div class="flex items-center gap-4">
+                            <a id="docViewerExternal" href="#" target="_blank" class="text-sm font-bold text-minti-dark bg-minti-green hover:bg-white transition-colors px-4 py-2 rounded-lg"><i class="fa-solid fa-arrow-up-right-from-square mr-1"></i> Abrir en Drive</a>
+                            <button onclick="closePreview()" class="text-gray-400 hover:text-red-500 transition-colors p-2"><i class="fa-solid fa-xmark text-2xl"></i></button>
+                        </div>
+                    </div>
+                    <div class="flex-1 bg-white relative">
+                        <div id="docLoading" class="absolute inset-0 flex flex-col items-center justify-center bg-gray-100 z-0">
+                            <i class="fa-solid fa-circle-notch fa-spin text-5xl text-minti-violet mb-4"></i>
+                            <p class="text-gray-600 font-bold text-lg">Cargando documento seguro...</p>
+                        </div>
+                        <iframe id="docIframe" class="w-full h-full border-none relative z-10" src=""></iframe>
+                    </div>
+                </div>
+
+                <!-- Documento Final Estático -->
+                <div class="bg-white text-gray-900 rounded-xl p-6 sm:p-12 max-w-4xl mx-auto shadow-2xl print:shadow-none print:p-0 mb-10">
+                    <div class="text-center mb-12 border-b-2 border-minti-dark pb-8 flex flex-col items-center">
+                        <img src="https://drive.google.com/thumbnail?id=1I5nGke2I6tml_wT0geSitgVVRoGsqLMr&sz=w400" alt="MINTI Logo" class="h-24 mb-4 object-contain">
+                        <h1 class="font-heading text-5xl font-black text-minti-dark mb-2 uppercase tracking-tight">MINTI</h1>
+                        <h2 class="text-2xl text-gray-600 font-light tracking-widest uppercase">Plan de Negocios 2026</h2>
+                        <p class="mt-6 text-sm text-gray-500 font-bold">DOCUMENTO CONFIDENCIAL</p>
+                    </div>
+
+                    <div class="space-y-8 text-lg leading-relaxed">
+                        <div>
+                            <h3 class="font-heading text-2xl font-bold text-minti-violet border-l-4 border-minti-green pl-4 mb-4">1. Resumen Ejecutivo</h3>
+                            <p>MINTI es la primera plataforma en México que convierte la gestión del dinero en una aventura épica para niños de 6 a 17 años. A través de un ecosistema digital integral que combina un videojuego MMO (Prosper Valley), una tarjeta de débito co-brandeada y módulos B2B para colegios, MINTI soluciona la grave brecha de educación financiera infantil en la región.</p>
+                        </div>
+                        <div>
+                            <h3 class="font-heading text-2xl font-bold text-minti-violet border-l-4 border-minti-green pl-4 mb-4">2. Problema y Oportunidad</h3>
+                            <ul class="list-disc pl-6 space-y-2">
+                                <li><strong>Brecha Financiera:</strong> El 70% de los menores en México no recibe educación financiera formal.</li>
+                                <li><strong>Economía Oculta:</strong> Aproximadamente $10B USD anuales se mueven en "domingos" fuera del sistema bancario formal.</li>
+                                <li><strong>Oportunidad:</strong> Ningún competidor actual combina banca real (BaaS), gamificación profunda y canal B2B escolar efectivo.</li>
+                            </ul>
+                        </div>
+                        <div>
+                            <h3 class="font-heading text-2xl font-bold text-minti-violet border-l-4 border-minti-green pl-4 mb-4">3. Activo Propietario: Behavioral ID</h3>
+                            <p>MINTI construye un historial de hasta 10 años de datos conductuales financieros antes de la mayoría de edad. Este "Score" evalúa la gratificación aplazada y responsabilidad, siendo transferible a bancos para habilitar crédito estudiantil sin requerir historial en buró tradicional.</p>
+                        </div>
+                        <div>
+                            <h3 class="font-heading text-2xl font-bold text-minti-violet border-l-4 border-minti-green pl-4 mb-4">4. Inversión y Uso de Fondos</h3>
+                            <p class="mb-4">Se levanta una ronda <strong>Pre-Seed de $10M MXN</strong> (Runway: 12 meses):</p>
+                            <table class="w-full text-left border-collapse bg-gray-50 rounded-lg overflow-hidden border border-gray-200">
+                                <thead>
+                                    <tr class="bg-minti-dark text-white">
+                                        <th class="p-4 border-r border-gray-600">Área de Inversión</th>
+                                        <th class="p-4 text-right">Porcentaje</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr class="border-b border-gray-200"><td class="p-4 border-r border-gray-200">Tecnología y Producto</td><td class="p-4 font-bold text-minti-violet text-right">51%</td></tr>
+                                    <tr class="border-b border-gray-200"><td class="p-4 border-r border-gray-200">Equipo Fundacional</td><td class="p-4 font-bold text-minti-violet text-right">24%</td></tr>
+                                    <tr class="border-b border-gray-200"><td class="p-4 border-r border-gray-200">Adquisición (Piloto)</td><td class="p-4 font-bold text-minti-violet text-right">10%</td></tr>
+                                    <tr class="border-b border-gray-200"><td class="p-4 border-r border-gray-200">Legal y Compliance</td><td class="p-4 font-bold text-minti-violet text-right">6%</td></tr>
+                                    <tr><td class="p-4 border-r border-gray-200">Contingencia</td><td class="p-4 font-bold text-minti-violet text-right">9%</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+        </div>
+    </main>
+
+    <!-- SCRIPTS -->
+    <script>
+        // Navegación de Tabs
+        function switchTab(tabId) {
+            document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+            document.getElementById('nav-' + tabId).classList.add('active');
+
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('tab-active'));
+            document.getElementById('tab-' + tabId).classList.add('tab-active');
+
+            if(tabId === 'business' && !window.chartsRendered) { renderCharts(); window.chartsRendered = true; }
+            if(tabId === 'competitors' && !window.compRendered) { initCompetitors(); renderRadarChart(); window.compRendered = true; }
+        }
+
+        // Visor de Documentos
+        function previewDoc(previewUrl, title, externalUrl) {
+            const viewerContainer = document.getElementById('docViewerContainer');
+            const iframe = document.getElementById('docIframe');
+            
+            viewerContainer.classList.remove('hidden');
+            document.getElementById('docViewerTitle').textContent = title;
+            document.getElementById('docViewerExternal').href = externalUrl;
+            document.getElementById('docLoading').classList.remove('hidden');
+            
+            iframe.onload = () => document.getElementById('docLoading').classList.add('hidden');
+            iframe.src = previewUrl;
+            
+            setTimeout(() => viewerContainer.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
+        }
+        function closePreview() {
+            document.getElementById('docViewerContainer').classList.add('hidden');
+            document.getElementById('docIframe').src = "";
+        }
+
+        // Datos y Lógica de Competidores
+        const COMP_APPS = [
+            { id: 'minti', name: 'MINTI', emoji: '🌱', origin: 'México (proyectado)', badgeClass: 'bg-minti-violet/20 text-minti-violet border-minti-violet/50', badgeText: 'En lanzamiento', sub: '$143 MXN/mes', card: 'Débito física (Pomelo/Visa)', minAge: '6 años', model: 'B2C + B2B SaaS', dims: { gamificacion: 10, banca_real: 10, cumplimiento_mx: 9, precio_mx: 8, canal_b2b: 9, escalabilidad: 9 }, pros: ['Gamificación MMO profunda (Unity)', 'BaaS con Pomelo + IFPE', 'Canal colegios (Minti Academy)', 'Personajes de economía conductual'], cons: ['Sin historial de tracción aún', 'Dependencia del banco Tier-1 aliado'], reg: 'IFPE / LFPDPPP', funding: 'Pre-seed / Seed 2026' },
+            { id: 'mozper', name: 'Mozper', emoji: '🦊', origin: 'Uruguay / México', badgeClass: 'bg-minti-green/20 text-minti-green border-minti-green/50', badgeText: 'Activo en MX', sub: 'Freemium', card: 'Débito Visa', minAge: '6 años', model: 'B2C', dims: { gamificacion: 3, banca_real: 9, cumplimiento_mx: 9, precio_mx: 8, canal_b2b: 2, escalabilidad: 6 }, pros: ['Primer mover en México', 'IFPE autorizado por CNBV', 'YC-backed, $3.55M Seed'], cons: ['Sin gamificación relevante', 'Sin canal B2B (colegios)', 'Retención baja sin engagement'], reg: 'IFPE (CNBV)', funding: '$3.55M Seed' },
+            { id: 'condusef', name: 'Banxico Educa', emoji: '🏛️', origin: 'México (gobierno)', badgeClass: 'bg-minti-green/20 text-minti-green border-minti-green/50', badgeText: 'Activo en MX', sub: 'Gratis', card: 'Sin tarjeta', minAge: 'Todas', model: 'Público', dims: { gamificacion: 4, banca_real: 0, cumplimiento_mx: 10, precio_mx: 10, canal_b2b: 5, escalabilidad: 3 }, pros: ['Acceso gratuito', 'Alineado a SEP'], cons: ['Sin producto financiero', 'No compite directo'], reg: 'Gobierno', funding: 'Presupuesto' },
+            { id: 'greenlight', name: 'Greenlight', emoji: '🟢', origin: 'EE.UU.', badgeClass: 'bg-red-500/20 text-red-400 border-red-500/50', badgeText: 'Sin presencia MX', sub: '$5.99 USD', card: 'Débito Mastercard', minAge: '6 años', model: 'B2C', dims: { gamificacion: 6, banca_real: 9, cumplimiento_mx: 2, precio_mx: 5, canal_b2b: 2, escalabilidad: 9 }, pros: ['6M+ usuarios', 'Inversión para teens'], cons: ['Sin operación en México', 'Sin regulación MX'], reg: 'EE.UU.', funding: '$556M+' },
+            { id: 'acorns', name: 'Acorns Early', emoji: '🌿', origin: 'EE.UU.', badgeClass: 'bg-red-500/20 text-red-400 border-red-500/50', badgeText: 'Sin presencia MX', sub: '$8 USD', card: 'Débito Visa', minAge: '6 años', model: 'B2C', dims: { gamificacion: 7, banca_real: 8, cumplimiento_mx: 1, precio_mx: 4, canal_b2b: 3, escalabilidad: 7 }, pros: ['Money Missions', 'Gamificación educativa'], cons: ['Sin presencia LatAm', 'Precio prohibido MX'], reg: 'EE.UU.', funding: 'Acorns Group' },
+            { id: 'bbva', name: 'BBVA Junior', emoji: '🔵', origin: 'México', badgeClass: 'bg-minti-green/20 text-minti-green border-minti-green/50', badgeText: 'Activo en MX', sub: 'Gratis', card: 'Débito BBVA', minAge: '12 años', model: 'Banca', dims: { gamificacion: 2, banca_real: 10, cumplimiento_mx: 10, precio_mx: 9, canal_b2b: 4, escalabilidad: 7 }, pros: ['Banco Tier-1', 'Regulación CNBV'], cons: ['Sin gamificación', 'Edad mínima alta'], reg: 'CNBV', funding: 'BBVA' }
+        ];
+
+        const DIM_LABELS = { gamificacion: 'Gamificación', banca_real: 'Banca real MX', cumplimiento_mx: 'Regulación MX', precio_mx: 'Acceso Precio', canal_b2b: 'Canal Colegios', escalabilidad: 'Escalabilidad' };
+
+        function initCompetitors() {
+            const grid = document.getElementById('competitors-grid');
+            grid.innerHTML = COMP_APPS.map(app => `
+                <div class="glass-card p-4 rounded-xl cursor-pointer hover:border-minti-green transition-all transform hover:-translate-y-1 border border-gray-700 text-center flex flex-col items-center justify-between h-full" onclick="showCompetitor('${app.id}')" id="card-${app.id}">
+                    <div class="text-4xl mb-2">${app.emoji}</div>
+                    <div class="font-bold text-white mb-1 leading-tight">${app.name}</div>
+                    <div class="text-[10px] text-gray-400 mb-3">${app.origin}</div>
+                    <span class="text-[9px] font-bold px-2 py-1 rounded-full border ${app.badgeClass}">${app.badgeText}</span>
+                </div>
+            `).join('');
+        }
+
+        function showCompetitor(id) {
+            const app = COMP_APPS.find(a => a.id === id);
+            const minti = COMP_APPS[0];
+            
+            document.querySelectorAll('#competitors-grid > div').forEach(el => el.classList.remove('border-minti-green', 'bg-minti-green/5'));
+            document.getElementById(`card-${id}`).classList.add('border-minti-green', 'bg-minti-green/5');
+
+            const panel = document.getElementById('competitor-details');
+            panel.classList.remove('hidden');
+
+            const barsHTML = Object.entries(app.dims).map(([k, v]) => {
+                const mintiV = minti.dims[k];
+                const colorClass = v >= mintiV ? 'bg-minti-green' : (v >= mintiV - 2 ? 'bg-minti-gold' : 'bg-red-500');
+                const textColor = v >= mintiV ? 'text-minti-green' : (v >= mintiV - 2 ? 'text-minti-gold' : 'text-red-400');
+                return `
+                    <div class="mb-3">
+                        <div class="flex justify-between text-xs mb-1">
+                            <span class="text-gray-400">${DIM_LABELS[k]}</span>
+                            <span class="font-bold ${textColor}">${v}/10 ${id === 'minti' ? '' : `<span class="text-gray-600 font-normal text-[10px] ml-1">(MINTI: ${mintiV})</span>`}</span>
+                        </div>
+                        <div class="w-full h-2 bg-gray-800 rounded-full overflow-hidden">
+                            <div class="h-full ${colorClass} rounded-full transition-all duration-500" style="width: ${v * 10}%"></div>
+                        </div>
+                    </div>`;
+            }).join('');
+
+            const prosHTML = app.pros.map(p => `<li class="flex items-start gap-2 text-sm text-gray-300 mb-2"><i class="fa-solid fa-circle-check text-minti-green mt-1"></i> <span>${p}</span></li>`).join('');
+            const consHTML = app.cons.map(c => `<li class="flex items-start gap-2 text-sm text-gray-300 mb-2"><i class="fa-solid fa-circle-xmark text-red-500 mt-1"></i> <span>${c}</span></li>`).join('');
+
+            panel.innerHTML = `
+                <div class="flex items-center gap-4 mb-6 pb-4 border-b border-gray-700">
+                    <span class="text-5xl">${app.emoji}</span>
+                    <div><h3 class="font-heading text-2xl font-bold text-white">${app.name}</h3><p class="text-sm text-gray-400">${app.model} · ${app.origin}</p></div>
+                </div>
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <div><h4 class="font-bold text-white mb-4 uppercase tracking-wider text-xs border-b border-gray-800 pb-2">Dimensiones Estratégicas</h4>${barsHTML}</div>
+                    <div class="flex flex-col gap-6">
+                        <div class="bg-gray-900/50 p-4 rounded-xl border border-gray-700">
+                            <div class="grid grid-cols-2 gap-y-3 gap-x-4 text-xs">
+                                <div><span class="text-gray-500 block">Suscripción:</span> <span class="font-bold text-gray-200">${app.sub}</span></div>
+                                <div><span class="text-gray-500 block">Tarjeta:</span> <span class="font-bold text-gray-200">${app.card}</span></div>
+                                <div><span class="text-gray-500 block">Regulación:</span> <span class="font-bold text-minti-green">${app.reg}</span></div>
+                                <div><span class="text-gray-500 block">Fondeo:</span> <span class="font-bold text-gray-200">${app.funding}</span></div>
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                            <div><h4 class="font-bold text-minti-green mb-3 uppercase tracking-wider text-xs">Fortalezas</h4><ul>${prosHTML}</ul></div>
+                            <div><h4 class="font-bold text-red-400 mb-3 uppercase tracking-wider text-xs">Vulnerabilidades</h4><ul>${consHTML}</ul></div>
+                        </div>
+                    </div>
+                </div>`;
+            if(window.innerWidth < 768) setTimeout(() => panel.scrollIntoView({ behavior: 'smooth', block: 'center' }), 100);
+        }
+
+        function renderRadarChart() {
+            Chart.defaults.color = '#a1a1aa';
+            Chart.defaults.font.family = "'Lato', sans-serif";
+            new Chart(document.getElementById('radarChart').getContext('2d'), {
+                type: 'radar',
+                data: {
+                    labels: ['Gamificación', 'Banca real MX', 'Regulación MX', 'Precio MX', 'Canal Colegios', 'Escalabilidad'],
+                    datasets: [
+                        { label: 'MINTI', data: [10, 10, 9, 8, 9, 9], backgroundColor: 'rgba(0, 255, 204, 0.3)', borderColor: '#00FFCC', borderWidth: 3 },
+                        { label: 'Mozper', data: [3, 9, 9, 8, 2, 6], backgroundColor: 'rgba(98, 0, 238, 0.1)', borderColor: '#6200EE', borderWidth: 2, borderDash: [5, 5] },
+                        { label: 'Greenlight', data: [6, 9, 2, 5, 2, 9], backgroundColor: 'rgba(255, 215, 0, 0.1)', borderColor: '#FFD700', borderWidth: 2, borderDash: [5, 5] }
+                    ]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    scales: { r: { min: 0, max: 10, ticks: { display: false }, grid: { color: 'rgba(255,255,255,0.1)' }, angleLines: { color: 'rgba(255,255,255,0.1)' } } },
+                    plugins: { legend: { position: 'bottom', labels: { color: '#fff', boxWidth: 12, padding: 10 } } }
+                }
+            });
+        }
+
+        function renderCharts() {
+            Chart.defaults.color = '#a1a1aa';
+            Chart.defaults.font.family = "'Lato', sans-serif";
+            
+            new Chart(document.getElementById('revenueChart').getContext('2d'), {
+                type: 'bar',
+                data: { labels: ['Año 1', 'Año 2', 'Año 3'], datasets: [{ label: 'Ingresos (M USD)', data: [1.8, 8.9, 27.4], backgroundColor: '#6200EE', borderRadius: 8 }] },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { grid: { display: false } }, y: { grid: { color: 'rgba(255,255,255,0.05)' } } } }
+            });
+
+            new Chart(document.getElementById('investmentChart').getContext('2d'), {
+                type: 'doughnut',
+                data: { labels: ['Tech', 'Equipo', 'Adq', 'Legal', 'Cont'], datasets: [{ data: [51, 24, 10, 6, 9], backgroundColor: ['#00FFCC', '#6200EE', '#FFD700', '#3B82F6', '#9CA3AF'], borderWidth: 0 }] },
+                options: { responsive: true, maintainAspectRatio: false, cutout: '75%', plugins: { legend: { position: 'right', labels: { color: '#fff' } } } }
+            });
+
+            new Chart(document.getElementById('growthChart').getContext('2d'), {
+                type: 'line',
+                data: { labels: ['M1', 'M6', 'M12', 'M18', 'M24', 'M30', 'M36'], datasets: [{ label: 'MAU', data: [2500, 15000, 60000, 180000, 420000, 750000, 1200000], borderColor: '#00FFCC', backgroundColor: 'rgba(0, 255, 204, 0.1)', fill: true, tension: 0.4 }] },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { grid: { color: 'rgba(255,255,255,0.05)' } }, y: { grid: { color: 'rgba(255,255,255,0.05)' } } } }
+            });
+        }
+    </script>
+</body>
+</html>
